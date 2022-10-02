@@ -16,7 +16,7 @@ onready var floor_extents = $Floor/CollisionShape2D
 
 var rng = RandomNumberGenerator.new()
 
-const GamePiece = preload("res://Scenes/KinematicGamePiece.tscn")
+const GamePiece = preload("res://Scenes/Tetris/KinematicGamePiece.tscn")
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
