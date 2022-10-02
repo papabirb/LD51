@@ -1,18 +1,30 @@
-extends Node2D
+extends KinematicBody2D
 
+# Modified from https://prosepoetrycode.potterpcs.net/2015/06/2d-grid-movement-with-kinematic-bodies-godot/
+var x_accum
+var mouse_down
+var tile_width
+var tile_height
+var velocity = Vector2.ZERO
+# End tutorial
+
+var mouse_x = 0
+var mouse_now = 0
+
+var father
 var children
 
 var vertical = false
 var horizontal = false
 
 var block_width = 3
+var block_height = 2
 
 var cant_drag = false
 
+var floor_impact = false
 var landed = false
 var never_landed = true
-
-var velocity = Vector2.ZERO
 
 enum shapes {
 	L, J, S, Z, T, I, C
@@ -20,14 +32,24 @@ enum shapes {
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
+	set_process_input(true)
+	x_accum = 0
 	randomize()
-	children = $Pieces.get_children()
-	for child1 in children:
-		child1.connect("movement", self, "drag_motion")
-		for child2 in children:
-			child1.add_collision_exception_with(child2)
+	custom_get_children()
+	tile_width = children[0].size_w
+	tile_height = children[0].size_h
 	shape_factory()
-	$Timer.start()
+	$DropTimer.start()
+#	$SlideTimer.start()
+	horizontal = true
+
+func custom_get_children():
+	children = get_children()
+	# remove the timers
+	children.pop_back()
+	children.pop_back()
+	children.pop_back()
+
 
 func shape_factory():
 	var shape = shapes.values()[randi() % shapes.size()]
@@ -72,6 +94,7 @@ func shape_factory():
 				i+= 1
 		shapes.I:
 			block_width = 4
+			block_height = 1
 			var i = 0
 			while i < children.size():
 				children[i].position.x += i * children[i].size_w
@@ -89,34 +112,78 @@ func shape_factory():
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _physics_process(delta):
-	children = $Pieces.get_children()
-	landed = false
-	for child in children:
-		if child.is_on_floor():
-			if child.get_last_slide_collision().collider.is_in_group("Floor"):
-				landed = true
-				never_landed = false
-		
-	if vertical:
-		if not landed:
-			for child in children:
-				child.move_and_slide(Vector2(0, child.size_h) / delta, Vector2.UP)
-				
-		vertical = false
-	
-	if horizontal:
-		var can_move = true
-		for child in children:
-			if can_move and never_landed:
-				child.move_and_slide(velocity, Vector2.UP)
-		horizontal = false
-		velocity = Vector2.ZERO
-
-func drag_motion(amount):
-	velocity = Vector2(amount * 5, 0)
 	horizontal = true
+	if Input.is_action_just_released("ui_touch"):
+		mouse_down = false
+		x_accum = 0
+		horizontal = false
+
+	if mouse_down:
+		mouse_now = father.nearest_column(get_global_mouse_position().x)
+		if mouse_now != null:
+			x_accum = mouse_now - mouse_x
+	else:
+		if father.local_col.find(int(position.x)) == -1:
+			for i in father.local_col:
+				if abs(i - position.x) < 30:
+					position.x = i
+		else:
+			print(father.local_col[father.local_col.find(position.x)])
+			print(position)
+	custom_get_children()
+	handle_vertical(delta)
+	handle_drag(delta)
+
+
+func handle_drag(delta):
+	if horizontal and never_landed:
+		if abs(x_accum) > tile_width:
+			velocity.x = tile_width * sign(x_accum)
+			x_accum -= tile_width * sign(x_accum)
+		else: velocity.x = 0
+		move_and_collide(Vector2(x_accum, 0).normalized() * tile_width * 5 * delta)
+		horizontal = false
+
+func handle_vertical(delta):
+	if vertical:
+		if not landed and $BufferTimer.is_stopped():
+			if not floor_impact:
+				move_and_slide(Vector2(0, tile_height) / delta, Vector2.UP)
+				floor_impact = is_on_floor()
+			if floor_impact:
+				if never_landed: 
+					$BufferTimer.start()
+					yield($BufferTimer, "timeout")
+					land(delta)
+				else: land(delta)
+		vertical = false
+
+func land(delta):
+	landed = move_and_collide(Vector2(0, tile_height), false, true, true) != null
+	floor_impact = landed
+	if never_landed: never_landed = !landed
+	if father.local_row.find(position.y) == -1:
+		for i in father.local_row:
+			if abs(i - position.y) < 10:
+				position.y = i
+	if landed:
+		father.add_to_grid(children)
 
 func _on_Timer_timeout():
 	vertical = true
-	$Timer.start()
+	$DropTimer.start()
 
+
+func _on_KinematicGamePiece_input_event(_viewport, event, _shape_idx):
+	if event.is_action_pressed("ui_touch") and not mouse_down:
+		mouse_down = event.is_pressed()
+		get_tree().set_input_as_handled()
+		mouse_x = father.nearest_column(get_global_mouse_position().x)
+
+func _on_SlideTimer_timeout():
+	horizontal = never_landed
+	$SlideTimer.start()
+
+
+func _on_BufferTimer_timeout():
+	pass
