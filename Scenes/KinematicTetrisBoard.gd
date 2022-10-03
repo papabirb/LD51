@@ -5,6 +5,7 @@ var ref_height
 var ref_width
 export var grid_width = 10
 export var grid_height = 20
+var engine_bug_offset = 2
 var grid = []
 var columns = []
 var local_col = []
@@ -31,12 +32,12 @@ func _ready():
 	$Timer.start()
 
 func set_grid():
-	columns.resize(grid_width)
-	local_col.resize(grid_width)
+	columns.resize(grid_width + engine_bug_offset)
+	local_col.resize(grid_width + engine_bug_offset)
 	rows.resize(grid_height)
 	local_row.resize(grid_height)
 	var i = 0
-	while i < grid_width:
+	while i < grid_width + engine_bug_offset:
 		columns[i] = (i * ref_width) + global_position.x
 		local_col[i] = columns[i] - global_position.x
 		i += 1
@@ -52,9 +53,9 @@ func set_grid():
 	
 	left_wall.global_position = Vector2(global_position.x - ref_width/2, global_position.y + (ref_height * grid_height / 2))
 	left_extents.shape.extents = Vector2(ref_width/2, ref_height * grid_height / 2)
-	right_wall.global_position = Vector2(columns[-1] + ref_width * 1.5, global_position.y + (ref_height * grid_height / 2))
+	right_wall.global_position = Vector2(columns[-(1 + engine_bug_offset)] + ref_width * 1.5, global_position.y + (ref_height * grid_height / 2))
 	right_extents.shape.extents = left_extents.shape.extents
-	grid_floor.global_position = Vector2((columns[0] + columns[-1])/2 + ref_width / 2, rows[-1] + ref_height * 1.5)
+	grid_floor.global_position = Vector2((columns[0] + columns[-(1 + engine_bug_offset)])/2 + ref_width / 2, rows[-1] + ref_height * 1.5)
 	floor_extents.shape.extents = Vector2(columns[-1] / 2, ref_height / 2)
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
@@ -67,7 +68,7 @@ func block_daddy():
 	var random_rotation = (randi() % 4)
 	var column_choice = rng.randi_range(0, (columns.size()-1) - blockPiece.block_width)
 	$Pieces.add_child(blockPiece)
-	blockPiece.rotation = deg2rad(90 * random_rotation)
+	#blockPiece.rotation = deg2rad(90 * random_rotation)
 	var offset
 	match random_rotation:
 		0: offset = 0
@@ -83,7 +84,6 @@ func block_daddy():
 func checkLineClears():
 	for row in range(grid_height - 1, -1, -1):
 		var count = 0
-		print(grid[row])
 		for col in range(grid_width -1, -1, -1):
 			if grid[row][col] != null: count += 1
 		if count == 10:
@@ -98,8 +98,12 @@ func checkLineClears():
 func add_to_grid(shapes):
 	for shape in shapes:
 		var col = columns.find(shape.sprite.global_position.x)
+#		if col == 10: col -= 1
 		var row = rows.find(shape.sprite.global_position.y)
+		print(Vector2(col, row))
 		grid[row][col] = shape
+	for row in grid_height:
+		print(grid[row])
 	checkLineClears()
 
 func nearest_column(x):
@@ -127,5 +131,5 @@ func nearest_row(y):
 			i += 1
 
 func _on_Timer_timeout():
-#	block_daddy()
+	block_daddy()
 	$Timer.start()

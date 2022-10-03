@@ -120,16 +120,13 @@ func _physics_process(delta):
 
 	if mouse_down:
 		mouse_now = father.nearest_column(get_global_mouse_position().x)
-		if mouse_now != null:
+		if mouse_now != null and mouse_x != null:
 			x_accum = mouse_now - mouse_x
 	else:
-		if father.local_col.find(int(position.x)) == -1:
+		if father.local_col.find(position.x) == -1:
 			for i in father.local_col:
-				if abs(i - position.x) < 30:
+				if abs(i - position.x) < tile_width / 2:
 					position.x = i
-		else:
-			print(father.local_col[father.local_col.find(position.x)])
-			print(position)
 	custom_get_children()
 	handle_vertical(delta)
 	handle_drag(delta)
