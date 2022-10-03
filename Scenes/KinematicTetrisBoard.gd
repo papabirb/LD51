@@ -65,8 +65,8 @@ func set_grid():
 func block_daddy():
 	var blockPiece = GamePiece.instance()
 	
-	var random_rotation = (randi() % 4)
-	var column_choice = rng.randi_range(0, (columns.size()-1) - blockPiece.block_width)
+	var random_rotation = 0 #(randi() % 4)
+	var column_choice = rng.randi_range(0, (columns.size()-1) - (blockPiece.block_width + 2))
 	$Pieces.add_child(blockPiece)
 	#blockPiece.rotation = deg2rad(90 * random_rotation)
 	var offset
@@ -76,24 +76,23 @@ func block_daddy():
 		2: offset = blockPiece.block_width
 		3: offset = blockPiece.block_height
 	blockPiece.global_position.x = columns[column_choice]
-	blockPiece.global_position.x += offset * blockPiece.tile_width
+	blockPiece.global_position.x += -offset * blockPiece.tile_width
 	blockPiece.global_position.y = rows[0]
 	blockPiece.father = self
-#	blockPiece.connect("just_landed", self, "checkLineClears")
 
 func checkLineClears():
 	for row in range(grid_height - 1, -1, -1):
 		var count = 0
 		for col in range(grid_width -1, -1, -1):
 			if grid[row][col] != null: count += 1
-		if count == 10:
-			for col in grid_width:
-				var shape = grid[row][col]
-				var parent = shape.get_parent()
-				grid[row][col] = null
-				shape.queue_free()
-				parent.custom_get_children()
-				parent.landed = false
+			if count == 10:
+				for block in range(grid_width -1, -1, -1):
+					var shape = grid[row][block]
+					var parent = shape.get_parent()
+					grid[row][block] = null
+					shape.queue_free()
+					parent.custom_get_children()
+					parent.landed = false
 
 func add_to_grid(shapes):
 	for shape in shapes:
